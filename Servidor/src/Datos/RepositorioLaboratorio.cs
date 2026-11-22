@@ -209,7 +209,7 @@ namespace Laboratorio.Datos
 
             using var conexion = ObtenerConexion();
 
-            string query = "SELECT * FROM PRESTAMO;";
+            string query = "SELECT id, id_trabajador, id_instrumento, fecha_prestamo, fecha_devuelto FROM PRESTAMO;";
 
             using var comando = new SqliteCommand(query, conexion);
             using var reader = comando.ExecuteReader();
@@ -219,10 +219,10 @@ namespace Laboratorio.Datos
                 lista.Add(new Prestamo
                 {
                     id = reader.GetInt32(0),
-                    id_instrumento = reader.GetInt32(1),
-                    id_trabajador = reader.GetInt32(2),
+                    id_trabajador = reader.GetInt32(1),
+                    id_instrumento = reader.GetInt32(2),
                     fecha_prestamo = DateTime.Parse(reader.GetString(3)),
-                    fecha_devuelto = DateTime.Parse(reader.GetString(4))
+                    fecha_devuelto = reader.IsDBNull(4) ? null : DateTime.Parse(reader.GetString(4))
                 });
             }
             return lista;

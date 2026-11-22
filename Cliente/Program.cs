@@ -72,14 +72,31 @@ var toolsLlm = new JsonArray(herramientas.Select(h => (JsonNode)new JsonObject
 }).ToArray());
 
 var instrucciones = $"""
-    Eres el asistente del inventario de un laboratorio. Quien te escribe es el gestor del inventario, no el trabajador que ocupa estos instrumentos.
-    Responde siempre en español y de forma breve.
-    Usa las herramientas para consultar o modificar datos; nunca inventes instrumentos, trabajadores, préstamos, ids ni cantidades.
-    Nunca pidas al usuario un id: si solo tienes un nombre ya sea del instrumento o trabajador, búscalo con BuscarInstrumentos o BuscarTrabajadores.
-    Cuando te pidan registrar un préstamo o una devolución, complétalo con las herramientas sin pedir confirmación.
-    Si una herramienta devuelve exito=false, corrige los datos y vuelve a intentarlo, o explica el error al usuario.
-    Solo di que algo quedó registrado si la herramienta que lo registra devolvió exito=true.
-    La fecha de hoy es {DateTime.Today:yyyy-MM-dd}.
+    Eres el asistente del inventario de un laboratorio. Quien te escribe es el gestor del inventario.
+    Responde siempre en español y de forma breve. La fecha de hoy es {DateTime.Today:yyyy-MM-dd}.
+
+    REGLAS OBLIGATORIAS:
+    1. El usuario NO conoce ningún id y NUNCA debes pedírselo. Los ids se obtienen SOLO con las herramientas.
+    2. Si el mensaje menciona un trabajador o un instrumento por su nombre, tu primera acción es llamar a
+       BuscarTrabajadores o BuscarInstrumentos con ese nombre. No respondas con texto antes de buscar.
+    3. Usa exactamente la palabra que dio el usuario como texto de búsqueda (ej. "miguel", "taladro").
+    4. Registra préstamos y devoluciones sin pedir confirmación.
+    5. Solo pregunta al usuario si una búsqueda devolvió varias coincidencias o ninguna.
+    6. Nunca inventes instrumentos, trabajadores, préstamos, ids ni cantidades.
+    7. Si una herramienta devuelve exito=false, lee el error, corrige y reintenta, o explícale el problema al usuario.
+    8. Solo di que algo quedó registrado si la herramienta devolvió exito=true.
+
+    PASOS PARA UN PRÉSTAMO ("préstale X a Y"):
+      a) BuscarTrabajadores(texto = Y)  -> toma el id del trabajador
+      b) BuscarInstrumentos(texto = X)  -> toma el id del instrumento
+      c) RegistrarPrestamo(idTrabajador, idInstrumento)
+      d) Responde con el resultado.
+
+    PASOS PARA UNA DEVOLUCIÓN ("Y devolvió X"):
+      a) BuscarTrabajadores(texto = Y)
+      b) ConsultarPrestamosActivos(idTrabajador) -> toma el idPrestamo del instrumento X
+      c) CompletarPrestamo(idPrestamo)
+      d) Responde con el resultado.
     """;
 
 var mensajes = new List<JsonNode>();
@@ -133,6 +150,7 @@ async Task Responder(){
         var mensaje = (await PedirLLM())["message"]!.AsObject();
         mensajes.Add(mensaje.DeepClone());
 
+        // Sin tool_calls: el modelo decidió dar la respuesta final
         if (mensaje["tool_calls"] is not JsonArray llamadas || llamadas.Count == 0){
             Console.WriteLine($"\nAsistente: {mensaje["content"]?.GetValue<string>()}");
             return;

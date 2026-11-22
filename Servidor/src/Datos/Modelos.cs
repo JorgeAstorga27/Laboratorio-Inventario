@@ -20,8 +20,10 @@ namespace Laboratorio.Modelos
     public class Prestamo
     {
         public int id {get; set;}
+        public int id_trabajador {get; set;}
+        public int id_instrumento {get; set;}
         public DateTime fecha_prestamo {get; set;}
         public DateTime? fecha_devuelto {get; set;} //Si no se ha devuelto, la fecha es nula
-        
+
     }
 }

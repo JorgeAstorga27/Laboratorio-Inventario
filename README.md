@@ -6,18 +6,6 @@ Asistente de consola que administra los **préstamos de instrumentos de un labor
 usuario -> cliente/chat -> LLM local (Ollama) -> llamada MCP -> herramienta (SQLite) -> LLM local -> respuesta al usuario
 ```
 
-## Contenido
-
-- [Estructura del proyecto](#estructura-del-proyecto)
-- [Herramientas MCP](#herramientas-mcp)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
-- [Configuración](#configuración)
-- [Ejecución](#ejecución)
-- [Datos de prueba](#datos-de-prueba)
-- [Evidencias](#evidencias)
-- [Solución de problemas](#solución-de-problemas)
-
 ## Estructura del proyecto
 
 ```
@@ -117,7 +105,6 @@ cp Cliente/config.example.json Cliente/config.json
     "url": "http://localhost:5000/mcp"
   },
   "llm": {
-    "provider": "ollama",
     "baseUrl": "http://localhost:11434",
     "chatPath": "/api/chat",
     "model": "qwen2.5:7b",

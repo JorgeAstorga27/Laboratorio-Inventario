@@ -124,32 +124,6 @@ namespace Laboratorio.Datos
                 return lista;
             }
 
-        public List<Instrumento> ObtenerInstrumentosPorNombre(string filtro)
-            {
-                var lista = new List<Instrumento>();
-
-                using var conexion = ObtenerConexion();
-
-                string query = "SELECT * FROM INSTRUMENTO WHERE nombre LIKE @filtro;";
-
-                using var comando = new SqliteCommand(query, conexion);
-                comando.Parameters.AddWithValue("@filtro", $"%{filtro}%");
-
-                using var reader = comando.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    lista.Add(new Instrumento
-                    {
-                        id = reader.GetInt32(0),
-                        nombre = reader.GetString(1),
-                        unidades_inventario = reader.GetInt32(2)
-                    });
-                }
-
-                return lista;
-            }
-   
         //Metodos para trabajadores
 
         public List <Trabajador> ObtenerTrabajadores()
@@ -176,32 +150,6 @@ namespace Laboratorio.Datos
             return lista;
         }
     
-        public List<Trabajador> ObtenerTrabajadorPorNombre(string filtro)
-            {
-                var lista = new List<Trabajador>();
-
-                using var conexion = ObtenerConexion();
-
-                string query = "SELECT * FROM TRABAJADOR WHERE nombre LIKE @filtro OR apellido LIKE @filtro";
-
-                using var comando = new SqliteCommand(query, conexion);
-                comando.Parameters.AddWithValue("@filtro", $"%{filtro}%");
-
-                using var reader = comando.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    lista.Add(new Trabajador
-                    {
-                        id = reader.GetInt32(0),
-                        nombre = reader.GetString(1),
-                        apellido = reader.GetString(2)
-                    });
-                }
-
-                return lista;
-            }
-   
         //Metodos para prestamos
         public List <Prestamo> ObtenerPrestamos()
         {

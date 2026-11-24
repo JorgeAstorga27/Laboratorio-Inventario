@@ -4,7 +4,7 @@ namespace Laboratorio.Modelos
     public class Instrumento
     {
         public int id {get; set;}
-        public string nombre {get; set;}
+        public string nombre {get; set;} = string.Empty;
         public int unidades_inventario{get; set;}
         
     }
@@ -12,8 +12,8 @@ namespace Laboratorio.Modelos
     public class Trabajador
     {
         public int id {get; set;}
-        public string nombre {get; set;}
-        public string apellido {get; set;}
+        public string nombre {get; set;} = string.Empty;
+        public string apellido {get; set;} = string.Empty;
 
     }    
 

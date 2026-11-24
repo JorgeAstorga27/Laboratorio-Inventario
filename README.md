@@ -196,3 +196,151 @@ Trabajadores: Carlos Mendoza, Laura Salazar, Roberto Gómez, Fernanda Ruiz y Mig
 Préstamos activos iniciales: Carlos tiene la llave dinamométrica, Roberto la soldadora y Fernanda el nivel láser.
 
 Para volver a los datos iniciales, detén el servidor, borra `Servidor/laboratorio.db` y arráncalo de nuevo.
+
+## Evidencias
+
+Transcripciones de la ejecución del proyecto. 
+
+### 1. Servidor MCP iniciado y accesible en su URL
+
+Salida del servidor:
+
+```text
+PS C:\Users\jorge\Documents\PROYECTOS\Inventario-Laboratorio\Servidor> dotnet run
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\jorge\Documents\PROYECTOS\Inventario-Laboratorio\Servidor
+ Servidor MCP de Laboratorio iniciado
+ URL MCP: http://localhost:5000/mcp
+```
+
+Respuesta en el navegador al abrir `http://localhost:5000`:
+
+```text
+Servidor MCP de Laboratorio activo. Endpoint MCP: /mcp
+```
+
+### 2. Cliente mostrando el modelo, la URL del LLM y la URL del servidor MCP
+
+```text
+PS C:\Users\jorge\Documents\PROYECTOS\Inventario-Laboratorio\cliente> dotnet run
+Configuración efectiva
+  Modelo local: qwen2.5:7b
+  API del LLM:  http://localhost:11434/api/chat
+  Servidor MCP: http://localhost:5000/mcp
+```
+
+### 3. Cliente descubriendo las herramientas MCP
+
+```text
+Conectando al servidor MCP...
+Herramientas MCP descubiertas:
+  - BuscarTrabajadores: Busca trabajadores del laboratorio por nombre o apellido, sin importar mayúsculas ni acentos. Devuelve id, nombre y apellido de cada coincidencia. Úsala para obtener el id de un trabajador antes de registrar o consultar préstamos. Si hay varias coincidencias, pregunta al usuario cuál es.
+  - BuscarInstrumentos: Busca instrumentos del laboratorio por nombre, sin importar mayúsculas ni acentos. Devuelve id, nombre, unidades totales y unidades disponibles para préstamo. Úsala para obtener el id de un instrumento o para saber si hay stock. Si hay varias coincidencias, pregunta al usuario cuál es.
+  - RegistrarPrestamo: Registra el préstamo de un instrumento del laboratorio a un trabajador, con la fecha de hoy. Valida que el trabajador y el instrumento existan, que haya unidades disponibles y que el trabajador no haya llegado al máximo de préstamos activos permitido. Si no conoces el id del trabajador o del instrumento, búscalos primero por nombre; nunca los inventes.
+  - ConsultarPrestamosActivos: Lista los préstamos que todavía no se han devuelto, con su id, trabajador, instrumento, fecha y días prestado. Úsala para obtener el id del préstamo antes de llamar a CompletarPrestamo, o para saber quién tiene un instrumento.
+  - CompletarPrestamo: Registra la devolución de un instrumento: marca el préstamo como devuelto con la fecha de hoy. Valida que el préstamo exista y que no se haya devuelto antes. Si no conoces el id del préstamo, obténlo primero con ConsultarPrestamosActivos; nunca lo inventes.
+```
+
+### 4. Invocación de herramientas MCP y respuesta final
+
+El modelo consulta el inventario, busca al trabajador, registra el préstamo y responde con el resultado.
+
+```text
+Usuario: ¿Hay algún multimetro disponible? ¿Cuantos hay? Prestale uno a Fernanda
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 1)...
+[MCP] El modelo solicita: BuscarInstrumentos
+[MCP] Argumentos: {"texto":"multímetro"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":2,"nombre":"Mult\u00EDmetro digital","unidadesTotales":8,"unidadesDisponibles":5}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 2)...
+[MCP] El modelo solicita: BuscarTrabajadores
+[MCP] Argumentos: {"texto":"Fernanda"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":4,"nombre":"Fernanda","apellido":"Ruiz"}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 3)...
+[MCP] El modelo solicita: RegistrarPrestamo
+[MCP] Argumentos: {"idTrabajador":4,"idInstrumento":2}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":{"idPrestamo":9,"trabajador":"Fernanda Ruiz","instrumento":"Mult\u00EDmetro digital","fechaPrestamo":"2026-11-23","unidadesDisponiblesRestantes":4}}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 4)...
+
+Asistente: El préstamo ha sido registrado con éxito. Fernanda Ruiz ha prestado un multímetro digital. Ahora tiene 4 unidades disponibles en el inventario.
+```
+
+### 5. Validación y error controlado
+
+**Validación del máximo de préstamos.** Fernanda ya tiene 3 préstamos activos, así que el servidor rechaza el registro.
+
+```text
+Usuario: Registra un prestamo a Fernanda de un taladro
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 1)...
+[MCP] El modelo solicita: BuscarTrabajadores
+[MCP] Argumentos: {"texto":"Fernanda"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":4,"nombre":"Fernanda","apellido":"Ruiz"}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 2)...
+[MCP] El modelo solicita: BuscarInstrumentos
+[MCP] Argumentos: {"texto":"taladro"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":1,"nombre":"Taladro percutor","unidadesTotales":5,"unidadesDisponibles":5}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 3)...
+[MCP] El modelo solicita: RegistrarPrestamo
+[MCP] Argumentos: {"idInstrumento":1,"idTrabajador":4}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":false,"error":"Fernanda Ruiz ya tiene 3 pr\u00E9stamos activos y el m\u00E1ximo permitido es 3. Debe devolver un instrumento antes de pedir otro."}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 4)...
+
+Asistente: Lo siento, Fernanda Ruiz ya tiene el máximo de préstamos permitidos. Debe devolver un instrumento antes de pedir otro.
+```
+
+**Error controlado.** El trabajador no existe y la herramienta devuelve un mensaje comprensible.
+
+```text
+Usuario: Prestale al trabajador Abel un multimetro
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 1)...
+[MCP] El modelo solicita: BuscarTrabajadores
+[MCP] Argumentos: {"texto":"Abel"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":false,"error":"No se encontr\u00F3 ning\u00FAn trabajador que coincida con \u0027Abel\u0027. Prueba con otra parte del nombre o el apellido, o llama a BuscarTrabajadores sin texto para ver la lista completa."}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 2)...
+
+Asistente: No encontré ningún trabajador con el nombre o apellido "Abel". ¿Podrías proporcionar más información o verificar el nombre?
+```
+
+**Instrumento sin unidades.** El modelo verifica el inventario antes de registrar y no intenta el préstamo.
+
+```text
+Usuario: Hazle un prestamo de una esmeriladora a Carlos
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 1)...
+[MCP] El modelo solicita: BuscarTrabajadores
+[MCP] Argumentos: {"texto":"Carlos"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":1,"nombre":"Carlos","apellido":"Mendoza"}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 2)...
+[MCP] El modelo solicita: BuscarInstrumentos
+[MCP] Argumentos: {"texto":"esmeriladora"}
+[MCP] Llamando al servidor MCP...
+[MCP] Resultado: {"exito":true,"datos":[{"id":6,"nombre":"Esmeriladora angular","unidadesTotales":0,"unidadesDisponibles":0}]}
+
+[LLM] Enviando historial y 5 herramientas a qwen2.5:7b (llamada 3)...
+
+Asistente: No hay esmeriladoras disponibles en el momento. No se puede realizar el préstamo.
+```

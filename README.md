@@ -6,65 +6,6 @@ Asistente de consola que administra los **préstamos de instrumentos de un labor
 usuario -> cliente/chat -> LLM local (Ollama) -> llamada MCP -> herramienta (SQLite) -> LLM local -> respuesta al usuario
 ```
 
-## Estructura del proyecto
-
-```
-Inventario-Laboratorio/
-├── Servidor/                         Servidor MCP (ASP.NET Core, transporte HTTP)
-│   ├── Program.cs                    Arranque, host/puerto/ruta desde configuración
-│   ├── appsettings.json              Dirección del servidor y reglas del laboratorio
-│   └── src/
-│       ├── Herramientas/HerramientasLaboratorio.cs   Definición de las herramientas MCP
-│       ├── Servicios/ServicioLaboratorio.cs          Validaciones y reglas de negocio
-│       └── Datos/                                    Modelos y repositorio SQLite
-└── Cliente/                          Chat de consola
-    ├── Program.cs                    Conexión MCP, llamadas a Ollama y ciclo de herramientas
-    ├── config.example.json           Configuración de ejemplo (sin secretos)
-    └── config.json                   Configuración efectiva
-```
-
-## Herramientas MCP
-
-Todas las herramientas devuelven un objeto JSON con la misma forma: `{ "exito": true, "datos": ... }` si funcionan, o `{ "exito": false, "error": "mensaje comprensible" }` si algo falla.
-
-| Herramienta | Parámetros | Qué hace | Validaciones |
-|---|---|---|---|
-| `BuscarTrabajadores` | `texto` (string, opcional) | Busca trabajadores por nombre o apellido, sin importar mayúsculas ni acentos. Sin texto, lista a todos. | Máximo 100 caracteres; avisa si no hay coincidencias. |
-| `BuscarInstrumentos` | `texto` (string, opcional) | Busca instrumentos y devuelve unidades totales y **disponibles**. Sin texto, lista todo el inventario. | Máximo 100 caracteres; avisa si no hay coincidencias. |
-| `RegistrarPrestamo` | `idTrabajador` (int), `idInstrumento` (int) | Registra el préstamo de un instrumento con la fecha de hoy. | Ids mayores que 0; el trabajador y el instrumento deben existir; debe haber unidades disponibles; el trabajador no puede superar el máximo de préstamos activos (3 por defecto). |
-| `ConsultarPrestamosActivos` | `idTrabajador` (int, opcional) | Lista los préstamos sin devolver, con días prestado. | Id mayor que 0 y trabajador existente. |
-| `CompletarPrestamo` | `idPrestamo` (int) | Registra la devolución de un préstamo. | Id mayor que 0; el préstamo debe existir y no estar ya devuelto. |
-
-Los datos se guardan en SQLite (`Servidor/laboratorio.db`). La base se crea y se llena con datos de prueba automáticamente la primera vez que arranca el servidor.
-
-## Requisitos
-
-- [.NET SDK 10](https://dotnet.microsoft.com/download)
-- [Ollama](https://ollama.com/download)
-- Un modelo con soporte de herramientas (*tool calling*). El proyecto se probó con `qwen2.5:7b`.
-
-## Instalación
-
-```bash
-# 1. Clonar el repositorio
-git clone <url-del-repositorio>
-cd Inventario-Laboratorio
-
-# 2. Restaurar dependencias de NuGet
-dotnet restore Servidor/Servidor.csproj
-dotnet restore Cliente/Cliente.csproj
-
-# 3. Descargar el modelo local
-ollama pull qwen2.5:7b
-```
-
-Paquetes NuGet que se instalan:
-
-| Proyecto | Paquetes |
-|---|---|
-| Servidor | `ModelContextProtocol`, `ModelContextProtocol.AspNetCore`, `Microsoft.Data.Sqlite` |
-| Cliente | `ModelContextProtocol`, `Microsoft.Extensions.Configuration.Json`, `.EnvironmentVariables`, `.CommandLine` |
-
 ## Configuración
 
 Ninguna dirección ni nombre de modelo está fija en el código. Todos se pueden cambiar con el archivo de configuración, con variables de entorno o con argumentos de línea de comandos. Si se usan varias a la vez, el orden de prioridad es: **argumentos > variables de entorno > `config.json` > `config.example.json`**.
@@ -93,7 +34,7 @@ Ninguna dirección ni nombre de modelo está fija en el código. Todos se pueden
 
 ### Cliente — `Cliente/config.json`
 
-Copia el archivo de ejemplo y ajústalo si hace falta:
+El repositorio ya incluye este archivo. Si falta, créalo a partir del ejemplo:
 
 ```bash
 cp Cliente/config.example.json Cliente/config.json
@@ -105,6 +46,7 @@ cp Cliente/config.example.json Cliente/config.json
     "url": "http://localhost:5000/mcp"
   },
   "llm": {
+    "provider": "ollama",
     "baseUrl": "http://localhost:11434",
     "chatPath": "/api/chat",
     "model": "qwen2.5:7b",
@@ -118,17 +60,6 @@ cp Cliente/config.example.json Cliente/config.json
 }
 ```
 
-| Clave | Descripción |
-|---|---|
-| `mcp:url` | URL completa del servidor MCP (protocolo, host, puerto y ruta). |
-| `llm:baseUrl` | URL de la API de Ollama. |
-| `llm:chatPath` | Ruta del endpoint de chat. |
-| `llm:model` | Nombre del modelo local. |
-| `llm:temperature` | Temperatura del modelo; `0` da respuestas más deterministas. |
-| `llm:numCtx` | Tamaño de la ventana de contexto. |
-| `llm:timeoutSegundos` | Tiempo máximo de espera por respuesta del LLM. |
-| `chat:maxLlamadasPorPregunta` | Límite de llamadas al LLM por pregunta, para evitar ciclos infinitos. |
-
 ### Cambiar la configuración sin editar archivos
 
 ```bash
@@ -141,17 +72,54 @@ dotnet run --project Cliente -- --llm:model=llama3.1:8b --mcp:url=http://localho
 
 Con variables de entorno se usa `__` como separador, por ejemplo `llm__model=llama3.1:8b` o `Servidor__Puerto=5050`.
 
-## Ejecución
+## Instalación y ejecución
 
-Usa tres terminales.
+### Requisitos
 
-**1. Ollama** (si no está corriendo ya como servicio):
+- [.NET SDK 10](https://dotnet.microsoft.com/download)
+- [Ollama](https://ollama.com/download)
+- Un modelo con soporte de herramientas (*tool calling*). El proyecto se probó con `qwen2.5:7b`.
+
+### Paso 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/JorgeAstorga27/Laboratorio-Inventario.git
+cd Laboratorio-Inventario
+```
+
+### Paso 2. Restaurar las dependencias de NuGet
+
+```bash
+dotnet restore Servidor/Servidor.csproj
+dotnet restore Cliente/Cliente.csproj
+```
+
+Paquetes NuGet que se instalan:
+
+| Proyecto | Paquetes |
+|---|---|
+| Servidor | `ModelContextProtocol`, `ModelContextProtocol.AspNetCore`, `Microsoft.Data.Sqlite` |
+| Cliente | `ModelContextProtocol`, `Microsoft.Extensions.Configuration.Json`, `.EnvironmentVariables`, `.CommandLine` |
+
+### Paso 3. Iniciar Ollama
+
+Si Ollama ya está corriendo como servicio, omite este paso. Si no, ejecútalo en una terminal y déjala abierta:
 
 ```bash
 ollama serve
 ```
 
-**2. Servidor MCP:**
+### Paso 4. Descargar el modelo local
+
+En otra terminal:
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+### Paso 5. Ejecutar el servidor MCP
+
+Desde la raíz del repositorio, en una terminal que debe quedar abierta:
 
 ```bash
 cd Servidor
@@ -160,14 +128,18 @@ dotnet run
 
 Para comprobar que está activo, abre `http://localhost:5000/` en el navegador.
 
-**3. Cliente de chat:**
+### Paso 6. Ejecutar el cliente de chat
+
+En otra terminal, desde la raíz del repositorio y con el servidor ya iniciado:
 
 ```bash
 cd Cliente
 dotnet run
 ```
 
-Comandos dentro del chat:
+### Uso del chat
+
+Comandos disponibles:
 
 | Comando | Acción |
 |---|---|
@@ -181,6 +153,37 @@ Ejemplos de preguntas:
 - `Préstale un taladro a Miguel.`
 - `¿Qué préstamos tiene Carlos?`
 - `Roberto devolvió la soldadora.`
+
+## Herramientas MCP
+
+Todas las herramientas devuelven un objeto JSON con la misma forma: `{ "exito": true, "datos": ... }` si funcionan, o `{ "exito": false, "error": "mensaje comprensible" }` si algo falla.
+
+| Herramienta | Parámetros | Qué hace | Validaciones |
+|---|---|---|---|
+| `BuscarTrabajadores` | `texto` (string, opcional) | Busca trabajadores por nombre o apellido, sin importar mayúsculas ni acentos. Sin texto, lista a todos. | Máximo 100 caracteres; avisa si no hay coincidencias. |
+| `BuscarInstrumentos` | `texto` (string, opcional) | Busca instrumentos y devuelve unidades totales y **disponibles**. Sin texto, lista todo el inventario. | Máximo 100 caracteres; avisa si no hay coincidencias. |
+| `RegistrarPrestamo` | `idTrabajador` (int), `idInstrumento` (int) | Registra el préstamo de un instrumento con la fecha de hoy. | Ids mayores que 0; el trabajador y el instrumento deben existir; debe haber unidades disponibles; el trabajador no puede superar el máximo de préstamos activos (3 por defecto). |
+| `ConsultarPrestamosActivos` | `idTrabajador` (int, opcional) | Lista los préstamos sin devolver, con días prestado. | Id mayor que 0 y trabajador existente. |
+| `CompletarPrestamo` | `idPrestamo` (int) | Registra la devolución de un préstamo. | Id mayor que 0; el préstamo debe existir y no estar ya devuelto. |
+
+Los datos se guardan en SQLite (`Servidor/laboratorio.db`). La base se crea y se llena con datos de prueba automáticamente la primera vez que arranca el servidor.
+
+## Estructura del proyecto
+
+```
+Laboratorio-Inventario/
+├── Servidor/                         Servidor MCP (ASP.NET Core, transporte HTTP)
+│   ├── Program.cs                    Arranque, host/puerto/ruta desde configuración
+│   ├── appsettings.json              Dirección del servidor y reglas del laboratorio
+│   └── src/
+│       ├── Herramientas/HerramientasLaboratorio.cs   Definición de las herramientas MCP
+│       ├── Servicios/ServicioLaboratorio.cs          Validaciones y reglas de negocio
+│       └── Datos/                                    Modelos y repositorio SQLite
+└── Cliente/                          Chat de consola
+    ├── Program.cs                    Conexión MCP, llamadas a Ollama y ciclo de herramientas
+    ├── config.example.json           Configuración de ejemplo (sin secretos)
+    └── config.json                   Configuración efectiva
+```
 
 ## Datos de prueba
 

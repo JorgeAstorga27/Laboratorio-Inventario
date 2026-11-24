@@ -25,13 +25,6 @@ Ninguna dirección ni nombre de modelo está fija en el código. Todos se pueden
 }
 ```
 
-| Clave | Descripción | Valor por defecto |
-|---|---|---|
-| `Servidor:Host` | Interfaz de red en la que escucha. Usa `0.0.0.0` para aceptar conexiones de otras máquinas. | `localhost` |
-| `Servidor:Puerto` | Puerto HTTP. | `5000` |
-| `Servidor:Ruta` | Ruta del endpoint MCP. | `/mcp` |
-| `Laboratorio:MaxPrestamos` | Máximo de préstamos activos por trabajador. | `3` |
-
 ### Cliente — `Cliente/config.json`
 
 El repositorio ya incluye este archivo. Si falta, créalo a partir del ejemplo:
